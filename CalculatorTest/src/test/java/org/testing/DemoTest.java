@@ -1,9 +1,17 @@
 package org.testing;
 
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvFileSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+//@Order(1) 
 @DisplayName("Test Math")
 public class DemoTest {
 
@@ -56,20 +64,30 @@ public class DemoTest {
     }
 
 //    the error message will always be computed, even if the test passes. To avoid it, a lambda can be used!
-    @Test
-    void failSubtract() {
-        int min = 3;
-        int sub = 2;
+    @ParameterizedTest
+//    @CvsSource({"3,2,1"})
+    @CsvFileSource(resources = "/filePath.csv")
+//    @MethodSource("integerSubtractionInputParameters")
+    void subtractWithParameters(int min, int sub, int res) {
         int result = calculator.integerSubtraction(min, sub);
-        assertEquals(1, result, () ->min + " - "+ sub + " must return 1!");
+        assertEquals(res, result, () ->min + " - "+ sub + " must return " + res + "!");
     }
 
-    @DisplayName("division by zero, failing test")
-    @Test
-    void testIntegerDivision_WhenDivisionIsByZero_ShouldThrowException() {
+    private static Stream<Arguments> integerSubtractionInputParameters() {
+        return Stream.of(
+                Arguments.of(3, 2, 1),
+                Arguments.of(53, 1, 52),
+                Arguments.of(44, 4, 40)
+        );
+    }
+
+    @DisplayName("division by zero")
+//    @Test
+    @RepeatedTest(value=3, name="{displayName}. Repetition {currentRepetition} of "+"{totalRepetitions}")
+    void testIntegerDivision_WhenDivisionIsByZero_ShouldThrowException(RepetitionInfo repetition, TestInfo info) {
 //        Arrange
         int dividend = 4;
-        int divisor = 1;
+        int divisor = 0;
 //        Act & Assert
        ArithmeticException arit = assertThrows(ArithmeticException.class, () -> {
 //            Act
@@ -86,5 +104,12 @@ public class DemoTest {
     @Test
     void testFailingMustFail() {
         fail("Running a failing test");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings={"John", "Kate", "Alice"})
+    void valueSourceDemonstration(String name) {
+        System.out.println(name);
+        assertNotNull(name);
     }
 }
