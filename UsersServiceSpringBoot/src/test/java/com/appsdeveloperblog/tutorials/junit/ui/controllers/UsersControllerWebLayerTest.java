@@ -8,6 +8,7 @@ import com.appsdeveloperblog.tutorials.junit.ui.response.UserRest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.modelmapper.ModelMapper;
@@ -41,17 +42,21 @@ public class UsersControllerWebLayerTest {
 //    @Autowired + The MockBean at the class level in case we need to specify which class is implemented
     UsersService usersService;
 
-    @Test
-    @DisplayName("User can be created")
-    void testCreateUser_whenValidUserDetailsProvided_returnsCreatedUserDetails() throws Exception {
-    //        Arrange
-        UserDetailsRequestModel userDetailReq = new UserDetailsRequestModel();
-        userDetailReq.setFirstName("Ili");
+    private UserDetailsRequestModel userDetailReq;
+    @BeforeEach
+    void setup() {
+        userDetailReq = new UserDetailsRequestModel();
         userDetailReq.setLastName("Scalco");
         userDetailReq.setEmail("test@festiSounds.com");
         userDetailReq.setPassword("12345678");
         userDetailReq.setRepeatPassword("12345678");
+    }
 
+    @Test
+    @DisplayName("User can be created")
+    void testCreateUser_whenValidUserDetailsProvided_returnsCreatedUserDetails() throws Exception {
+    //        Arrange
+        userDetailReq.setFirstName("Ili");
         UserDto userDto = new ModelMapper().map(userDetailReq, UserDto.class);
         userDto.setUserId(UUID.randomUUID().toString());
         when(usersService.createUser(any(UserDto.class))).thenReturn(userDto);
@@ -82,12 +87,7 @@ public class UsersControllerWebLayerTest {
     @DisplayName("First name is not empty")
     void testCreateUser_whenFirstNameIsNotProvided_Returns400() throws Exception {
         //        Arrange
-        UserDetailsRequestModel userDetailReq = new UserDetailsRequestModel();
         userDetailReq.setFirstName("");
-        userDetailReq.setLastName("Scalco");
-        userDetailReq.setEmail("test@festiSounds.com");
-        userDetailReq.setPassword("12345678");
-        userDetailReq.setRepeatPassword("12345678");
 
         RequestBuilder requestBuilder = MockMvcRequestBuilders.post("/users")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -95,6 +95,24 @@ public class UsersControllerWebLayerTest {
                 .content(new ObjectMapper().writeValueAsString(userDetailReq));
 //        Act
        MvcResult mvcResult = mockMvc.perform(requestBuilder).andReturn();
+
+//       Assert
+
+        Assertions.assertEquals(HttpStatus.BAD_REQUEST.value(), mvcResult.getResponse().getStatus(),
+                "Incorrect HTTP status");
+    }
+
+    @Test
+    @DisplayName("First name length is longer than 1")
+    void testCreateUser_whenFirstNameIsTooShort_Returns400() throws Exception {
+        userDetailReq.setFirstName("p");
+
+        RequestBuilder requestBuilder = MockMvcRequestBuilders.post("/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .content(new ObjectMapper().writeValueAsString(userDetailReq));
+//        Act
+        MvcResult mvcResult = mockMvc.perform(requestBuilder).andReturn();
 
 //       Assert
 
