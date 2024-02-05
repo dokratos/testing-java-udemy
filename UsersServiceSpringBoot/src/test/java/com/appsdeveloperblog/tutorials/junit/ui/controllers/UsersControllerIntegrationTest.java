@@ -1,8 +1,10 @@
 package com.appsdeveloperblog.tutorials.junit.ui.controllers;
 
+import com.appsdeveloperblog.tutorials.junit.security.SecurityConstants;
 import com.appsdeveloperblog.tutorials.junit.ui.response.UserRest;
 import net.minidev.json.JSONObject;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,14 +12,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.*;
 
-import java.net.http.HttpHeaders;
+import java.security.Security;
 import java.util.Arrays;
+import java.util.List;
 
 
 //this will not load the whole context, but use mock object:::
@@ -60,8 +60,6 @@ public class UsersControllerIntegrationTest {
         userDetailRequestJson.put("password", "123456789");
         userDetailRequestJson.put("repeatPassword", "123456789");
 
-
-//        TODO: check alternative to this code - this does not work!
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
@@ -82,4 +80,42 @@ public class UsersControllerIntegrationTest {
 
     }
 
+    @Test
+    @DisplayName("GET /users requires JWT")
+    void testGetUsers_whenMissingJWT_returns403() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Accept", "application/json");
+
+        HttpEntity<String> request = new HttpEntity<>(headers);
+
+//        Act
+        ResponseEntity<List<UserRest>> response = testTemplate.exchange("/users",
+                                    HttpMethod.GET,
+                                    request,
+                                    new ParameterizedTypeReference<List<UserRest>>() {
+                                    });
+//      Assert
+        Assertions.assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode(), "message!");
+    }
+
+    @Test
+    @DisplayName("/login works")
+    void testUserLogin_whenValidCredentialsProvided_returnsJWT() {
+//        Arrange
+        String loginCredentialsJson = "";
+
+        JSONObject loginCredentials = new JSONObject();
+        loginCredentials.put("email", "test@test.it");
+        loginCredentials.put("password", "123456789");
+
+        HttpEntity<String> request = new HttpEntity<>(loginCredentials.toString());
+
+        ResponseEntity response = testTemplate.postForEntity("/users/login", request, null);
+
+//        Assert
+        Assertions.assertEquals(HttpStatus.OK, response.getStatusCode(),
+        "Http Status should be 200");
+        Assertions.assertNotNull(response.getHeaders().getValuesAsList(SecurityConstants.HEADER_STRING).get(0), "Response should contain auth header");
+        Assertions.assertNotNull(response.getHeaders().getValuesAsList("UserId").get(0), "Response should contain user ID");
+    }
 }
