@@ -3,10 +3,7 @@ package com.appsdeveloperblog.tutorials.junit.ui.controllers;
 import com.appsdeveloperblog.tutorials.junit.security.SecurityConstants;
 import com.appsdeveloperblog.tutorials.junit.ui.response.UserRest;
 import net.minidev.json.JSONObject;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +22,8 @@ import java.util.List;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 //the properties value can be added to the springboottest annotation
 //@TestPropertySource(locations = "/application-test.properties", properties = "server.port=8080")
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class UsersControllerIntegrationTest {
 
     @Value("${server.port}")
@@ -35,6 +34,7 @@ public class UsersControllerIntegrationTest {
 
     @Autowired
     private TestRestTemplate testTemplate;
+    private String authorizationToken;
 //
 //    @Test
 //    void contextLoads() {
@@ -44,6 +44,7 @@ public class UsersControllerIntegrationTest {
 
     @Test
     @DisplayName("User can be created")
+    @Order(1)
     void restCreateUser_whenValidDetailsProvided_returnsUserDetails() {
         String createUserJSon = "{\n" +
                 " \"firstName\":\"Sergey\",\n" +
@@ -82,6 +83,7 @@ public class UsersControllerIntegrationTest {
 
     @Test
     @DisplayName("GET /users requires JWT")
+    @Order(2)
     void testGetUsers_whenMissingJWT_returns403() {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Accept", "application/json");
@@ -100,6 +102,7 @@ public class UsersControllerIntegrationTest {
 
     @Test
     @DisplayName("/login works")
+    @Order(3)
     void testUserLogin_whenValidCredentialsProvided_returnsJWT() {
 //        Arrange
         String loginCredentialsJson = "";
@@ -112,10 +115,34 @@ public class UsersControllerIntegrationTest {
 
         ResponseEntity response = testTemplate.postForEntity("/users/login", request, null);
 
+        authorizationToken = response.getHeaders().getValuesAsList(SecurityConstants.HEADER_STRING).get(0);
+
 //        Assert
         Assertions.assertEquals(HttpStatus.OK, response.getStatusCode(),
         "Http Status should be 200");
         Assertions.assertNotNull(response.getHeaders().getValuesAsList(SecurityConstants.HEADER_STRING).get(0), "Response should contain auth header");
         Assertions.assertNotNull(response.getHeaders().getValuesAsList("UserId").get(0), "Response should contain user ID");
+    }
+
+    @Test
+    @Order(4)
+    @DisplayName("GET /users works")
+    void testGetUsers_whenValidJWTProvided_returnsUsers() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+        headers.setBearerAuth(authorizationToken);
+
+        HttpEntity requestEntity = new HttpEntity<>(headers);
+
+        ResponseEntity<List<UserRest>> response = testTemplate.exchange("/users",
+                HttpMethod.GET,
+                requestEntity,
+                new ParameterizedTypeReference<List<UserRest>>() {
+                });
+
+
+        Assertions.assertEquals(HttpStatus.OK, response.getStatusCode(), "Http Status should be 200");
+        Assertions.assertTrue(response.getBody().size() == 1, "There should be one user in the list");
+
     }
 }
